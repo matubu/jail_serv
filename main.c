@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
+#include <pwd.h>
 
 #define REQ_BUF_SIZE 1024
 #define FILE_BUF_SIZE (1024 * 1024)
@@ -44,30 +45,23 @@ void	usage(char *s) {
 }
 
 void	drop_root_privileges(void) {
-	gid_t	gid;
+	struct passwd *nobody = getpwnam("nobody");
+	if (!nobody) {
+		die("could not find nobody");
+	}
 
-	if ((gid = getgid()) == 0) {
-		char *sgid = getenv("SUDO_GID");
+	if (setgroups(0, NULL) < 0) {
+		die("setgroups(0, NULL)");
+	}
 
-		if (sgid == NULL) {
-			die("failed to getenv `SUDO_GID`");
-		}
-
-		if (setgid(atoi(sgid)) < 0) {
+	if (getgid() == 0) {
+		if (setgid(nobody->pw_gid) < 0) {
 			die("failed to setgid");
 		}
 	}
 
-	uid_t	uid;
-
-	if ((uid = getuid()) == 0) {
-		char *suid = getenv("SUDO_UID");
-
-		if (suid == NULL) {
-			die("failed to getenv `SUDO_UID`");
-		}
-
-		if (setuid(atoi(suid)) < 0) {
+	if (getuid() == 0) {
+		if (setuid(nobody->pw_uid) < 0) {
 			die("failed to setuid");
 		}
 	}
